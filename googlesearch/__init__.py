@@ -32,6 +32,7 @@ import random
 import sys
 import time
 import ssl
+import math
 
 if sys.version_info[0] > 2:
     from http.cookiejar import LWPCookieJar
@@ -206,6 +207,78 @@ def filter_result(link):
     except Exception:
         pass
 
+def ngd(w1, w2):
+    #This code is from https://github.com/josh-ashkinaze/Normalized-Google-Distance/
+    """
+    Returns the Normalized Google Distance between two queries.
+    Params:
+     w1 (str): word 1
+     w2 (str): word 2
+    Returns:
+     NGD (float)
+    """
+    N = 25270000000.0 # Number of results for "the", proxy for total pages
+    N = math.log(N,2) 
+    if w1 != w2:
+      f_w1 = math.log(get_result_count(f'"{w1}"'),2)
+      f_w2 = math.log(get_result_count(f'"{w2}"'),2)
+      f_w1_w2 = math.log(get_result_count(f'"{w1}" "{w2}"'),2)
+      NGD = (max(f_w1,f_w2) - f_w1_w2) / (N - min(f_w1,f_w2))
+      return NGD
+    else: 
+      return 0
+
+def get_result_count(query, tld='com', lang='en', tbs='0', safe='off', num=10, start=0,
+           stop=None, pause=2.0, country='', extra_params=None,
+           user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0', verify_ssl=True):
+    
+    # Prepare the search string.
+    query = quote_plus(query)
+    
+    # If no extra_params is given, create an empty dictionary.
+    # We should avoid using an empty dictionary as a default value
+    # in a function parameter in Python.
+    if not extra_params:
+        extra_params = {}
+
+    # Check extra_params for overlapping.
+    for builtin_param in url_parameters:
+        if builtin_param in extra_params.keys():
+            raise ValueError(
+                'GET parameter "%s" is overlapping with \
+                the built-in GET parameter',
+                builtin_param
+            )
+
+    # Grab the cookie from the home page.
+    get_page(url_home % vars(), user_agent, verify_ssl)
+    
+    url = url_next_page % vars()
+    
+    # Append extra GET parameters to the URL.
+    # This is done on every iteration because we're
+    # rebuilding the entire URL at the end of this loop.
+    for k, v in extra_params.items():
+        k = quote_plus(k)
+        v = quote_plus(v)
+        url = url + ('&%s=%s' % (k, v))
+
+    # Sleep between requests.
+    # Keeps Google from banning you for making too many requests.
+    time.sleep(pause)
+
+    # Request the Google Search results page.
+    html = get_page(url, user_agent, verify_ssl)
+    
+    print(url)
+    
+    if is_bs4:
+            soup = BeautifulSoup(html, 'html.parser')
+    else:
+        soup = BeautifulSoup(html)
+    
+    count = soup.find('div', {'id': 'result-stats'})
+    return int(count.text.replace(",", "").split()[1])
 
 # Returns a generator that yields URLs.
 def search(query, tld='com', lang='en', tbs='0', safe='off', num=10, start=0,
