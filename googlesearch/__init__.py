@@ -273,7 +273,7 @@ def get_result_count(query, tld='com', lang='en', tbs='0', safe='off', num=10, s
     print(url)
     
     if is_bs4:
-            soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, 'html.parser')
     else:
         soup = BeautifulSoup(html)
     
